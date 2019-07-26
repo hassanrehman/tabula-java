@@ -34,7 +34,7 @@ public class CommandLineApp {
 
     private static String VERSION = "1.0.4";
     private static String VERSION_STRING = String.format("tabula %s (c) 2012-2018 Manuel Aristarán", VERSION);
-    private static String BANNER = "\nTabula helps you extract tables from PDFs\n\n";
+    private static String BANNER = "\nTabula helps you extract tables from PDFs. Run with 'listen' as the first argument to run this as a local server. tabula listen --help for details.\n\n";
     
     private static final int RELATIVE_AREA_CALCULATION_MODE = 0;
     private static final int ABSOLUTE_AREA_CALCULATION_MODE = 1;
@@ -61,25 +61,30 @@ public class CommandLineApp {
     }
 
     public static void main(String[] args) {
-        CommandLineParser parser = new DefaultParser();
-        try {
-            // parse the command line arguments
-            CommandLine line = parser.parse(buildOptions(), args);
+        if (args[0].equals("listen")) {
+            CommandLineServerApp.serverMain(args);
+        }
+        else {
+            CommandLineParser parser = new DefaultParser();
+            try {
+                // parse the command line arguments
+                CommandLine line = parser.parse(buildOptions(), args);
 
-            if (line.hasOption('h')) {
-                printHelp();
-                System.exit(0);
+                if (line.hasOption('h')) {
+                    printHelp();
+                    System.exit(0);
+                }
+
+                if (line.hasOption('v')) {
+                    System.out.println(VERSION_STRING);
+                    System.exit(0);
+                }
+
+                new CommandLineApp(System.out, line).extractTables(line);
+            } catch (ParseException exp) {
+                System.err.println("Error: " + exp.getMessage());
+                System.exit(1);
             }
-
-            if (line.hasOption('v')) {
-                System.out.println(VERSION_STRING);
-                System.exit(0);
-            }
-
-            new CommandLineApp(System.out, line).extractTables(line);
-        } catch (ParseException exp) {
-            System.err.println("Error: " + exp.getMessage());
-            System.exit(1);
         }
         System.exit(0);
     }
