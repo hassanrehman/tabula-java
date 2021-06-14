@@ -1,11 +1,6 @@
 package technology.tabula;
 
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import org.apache.commons.cli.*;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -15,7 +10,22 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.Map;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
+import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 
 public class CommandLineServerApp {
 
@@ -36,10 +46,18 @@ public class CommandLineServerApp {
   private void startServer() {
     try{
       HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-      server.createContext("/execute", new CommandHandler());
-      server.createContext("/echo", new EchoHandler());
+      
+      ArrayList<HttpContext> contexts = new ArrayList<HttpContext>();
+      contexts.add(server.createContext("/execute", new CommandHandler()));
+      contexts.add(server.createContext("/echo", new EchoHandler()));
+      
+      CommandLineServerAuthenticator auth = new CommandLineServerAuthenticator();
+      if(auth.hasCredentials()) {
+    	  for( HttpContext context : contexts )
+    		  context.setAuthenticator(auth);
+      }
       server.setExecutor(null); // creates a default executor
-      System.out.println("Listening on http://127.0.0.1:"+port+ ( debug ? " (DEBUG MODE)" : "" ));
+      System.out.println("Listening on 0.0.0.0:"+port+ ( debug ? " (DEBUG MODE)" : "" ));
       server.start();
       waitMethod();
     }catch(BindException be){
@@ -78,6 +96,8 @@ public class CommandLineServerApp {
 
       debug = line.hasOption("d");
       identity = line.getOptionValue("i");
+      if( identity == null )
+    	  identity = System.getenv("IDENTITY");
 
       new CommandLineServerApp(line).startServer();
     } catch (ParseException exp) {
@@ -211,15 +231,19 @@ public class CommandLineServerApp {
 
     o.addOption("v", "version", false, "Print version and exit.");
     o.addOption("h", "help", false, "Print this help text.");
-    o.addOption("p", "port", true, "Port to run the server on. Defaults to: " + DEFAULT_PORT);
+    o.addOption("p", "port", true, "Port to run the server on. If not given, taken from ENV['PORT']. Defaults to: " + DEFAULT_PORT);
     o.addOption("d", "debug", false, "Print additional information to help debug");
-    o.addOption("i", "identity", true, "Start server with this string and /echo returns this string. Used to ID the server on the port.");
+    o.addOption("i", "identity", true, "Start server with this string and /echo returns this string. Used to ID the server on the port. If not given, taken from ENV['IDENTITY']");
     return o;
   }
-
-
+  
   private static int whichPort(CommandLine line) throws ParseException {
-    return line.hasOption('p') ? Integer.parseInt(line.getOptionValue('p')) : DEFAULT_PORT;
+	if( line.hasOption('p') )
+		return Integer.parseInt(line.getOptionValue('p'));
+	String port = System.getenv("PORT");
+	if( port != null )
+		return Integer.parseInt(port);
+    return DEFAULT_PORT;
   }
 
 }

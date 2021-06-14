@@ -107,11 +107,13 @@ public class CommandLineApp {
             throw new ParseException("Need exactly one filename\nTry --help for help");
         }
 
-        File pdfFile = new File(line.getArgs()[0]);
-        if (!pdfFile.exists()) {
-            throw new ParseException("File does not exist");
+        File pdfFile = new InputFile(line.getArgs()[0]).localizeFile(line.hasOption("nc"));
+        if( pdfFile != null && pdfFile.exists() ) {
+        	extractFileTables(line, pdfFile);
         }
-        extractFileTables(line, pdfFile);
+        else {
+        	throw new ParseException("File does not exist");
+        }
     }
 
     public void extractDirectoryTables(CommandLine line, File pdfDirectory) throws ParseException {
@@ -352,6 +354,7 @@ public class CommandLineApp {
                 .hasArg()
                 .argName("PAGES")
                 .build());
+        o.addOption("nc", "nocache", false, "If file is s3:// based, force the system to fetch the file again (discard locally stored version if present)");
 
         return o;
     }
